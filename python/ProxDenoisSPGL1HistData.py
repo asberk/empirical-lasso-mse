@@ -9,10 +9,11 @@ def main(logNmax, filename, logfile=sys.stdout):
                   'sqNormZ': pdmse.pdmse_batch(logNmax,
                                                theta='sqNormZ',
                                                verbose=logfile)}
-    fp = open(logfile, 'a', encoding='utf-8')
-    print('\nRuns complete. Saving dict to json...', file=fp, end='')
+    with open(logfile, 'a', encoding='utf-8') as fp:
+        print('\nRuns complete. Saving dict to json...', file=fp, end='')
     jsonWrite.dict(filename, pdmse_dict)
-    print('complete!', file=fp)
+    with open(logfile, 'a', encoding='utf-8') as fp:
+        print('complete!', file=fp)
     return
 
 if __name__ == "__main__":
