@@ -9,6 +9,7 @@ import jsonWrite
 try:
     from spgl1 import spgl1
 except ImportError as ie:
+    print('trying alternative import for spgl1')
     import addToPath
     addToPath.spgl1()
     from spgl1 import spgl1
