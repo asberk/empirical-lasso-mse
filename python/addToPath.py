@@ -1,5 +1,8 @@
 
 def spgl1():
     import sys
-    sys.path.append('../../SPGL1_python_port/')
+    if sys.prefix is 'darwin':
+        sys.path.append('../../SPGL1_python_port/')
+    else:
+        sys.path.append('../../')
     return
