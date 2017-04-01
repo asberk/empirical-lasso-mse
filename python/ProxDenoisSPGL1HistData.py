@@ -13,6 +13,7 @@ def main(logNmax, filename, logfile=sys.stdout):
     print('\nRuns complete. Saving dict to json...', file=fp, end='')
     jsonWrite.dict(filename, pdmse_dict)
     print('complete!', file=fp)
+    fp.close()
     return
 
 if __name__ == "__main__":
