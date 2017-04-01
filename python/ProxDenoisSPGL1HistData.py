@@ -1,6 +1,6 @@
 import pdmse
 import sys
-from jsonWriteDict import jsonWriteDict
+import jsonWrite
 
 
 def main(logNmax, filename, logfile=sys.stdout):
@@ -11,7 +11,7 @@ def main(logNmax, filename, logfile=sys.stdout):
                                                verbose=logfile)}
     fp = open(logfile, 'a', encoding='utf-8')
     print('\nRuns complete. Saving dict to json...', file=fp, end='')
-    jsonWriteDict(filename, pdmse_dict)
+    jsonWrite.dict(filename, pdmse_dict)
     print('complete!', file=fp)
     return
 

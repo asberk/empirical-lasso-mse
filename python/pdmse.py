@@ -4,8 +4,14 @@
 # #
 
 # from spgl1 import spgSetParms
-from spgl1 import spgl1
 import numpy as np
+import jsonWrite
+try:
+    from spgl1 import spgl1
+except ImportError as ie:
+    import addToPath
+    addToPath.spgl1()
+    from spgl1 import spgl1
 
 
 def unsort(increasingVector, sortOrder):
@@ -83,7 +89,8 @@ def pdmse_spgl1(N, theta=None, **kwargs):
     s = kwargs.get('s', 1)
     eta = kwargs.get('eta', 1)
     spgParms = kwargs.get('spgParms', [])
-    x = np.array([N for _ in range(s)] + [0 for _ in range(N-s)])
+    x = np.zeros(N)
+    x[-s:] = N
     z = np.random.randn(N)
     if theta is None:
         theta = np.sqrt(N)
@@ -115,6 +122,7 @@ def pdmse_homotopy(N, theta=None, **kwargs):
     # Use cython where possible...
     s = kwargs.get('s', 1)
     eta = kwargs.get('eta', 1)
+    z = np.random.randn(N)
     if theta is None:
         theta = np.sqrt(N)
     elif theta is 'sqNormZ':
@@ -123,9 +131,8 @@ def pdmse_homotopy(N, theta=None, **kwargs):
         raise ValueError('theta must be numeric or equal to \'sqNormZ\'.')
     x = np.zeros(N)
     x[-s:] = N
-    z = np.random.randn(N)
     y = x + eta*z
-    xstar = spgl1(np.eye(N), y, sigma=theta, options=spgParms)[0]
+    xstar = pd_homotopy(y, theta**2)
     return np.linalg.norm(x - xstar)**2
 
 
@@ -146,7 +153,7 @@ def pdmse(N, theta=None, **kwargs):
     spgParms : parameters to be passed to spgl1 (cf. spgSetParms)
     """
     iters = kwargs.pop('iters', 10)
-    func = kwargs.pop('func', pdmse_spgl1)
+    func = kwargs.pop('func', pdmse_homotopy)
     return np.mean([func(N, theta, **kwargs) for _ in range(iters)])
 
 
@@ -179,9 +186,8 @@ def pdmse_batch(logNmax=5, theta=None, **kwargs):
         fp = open(logFile, 'w', encoding='utf-8')
     elif isinstance(verbose, str):
         logFile = verbose
-        fp = open(logFile, 'w', encoding='utf-8')
-        fp.write('Initializing algorithm.\n')
-        fp.close()
+        with open(logFile, 'w', encoding='utf-8') as fp:
+            fp.write('Initializing algorithm.\n')
         verbose = True
 
     Nvec = [10**j for j in range(1, logNmax+1)]
@@ -189,14 +195,15 @@ def pdmse_batch(logNmax=5, theta=None, **kwargs):
 
     for i, N in enumerate(Nvec):
         if verbose:
-            fp = open(logFile, 'a', encoding='utf-8')
-            print('\nStarting outer iteration sequence {} of {}.'.format(i+1, logNmax), file=fp)
-            fp.close()
+            with open(logFile, 'a', encoding='utf-8') as fp:
+                print('\n\nStarting outer iteration sequence {} of {}.'.format(i+1, logNmax), file=fp)
         for j in range(outerIters):
             retmat[i, j] = pdmse(N, theta, **kwargs)
             if verbose and (np.mod(j+1, 10) == 0):
-                fp = open(logFile, 'a', encoding='utf-8')
-                print('\tfinished outer iter {} of {}.'.format(j+1, outerIters), file=fp)
-                fp.close()
-    fp.close()
+                with open(logFile, 'a', encoding='utf-8') as fp:
+                    print('\tfinished outer iter {} of {}.'.format(j+1, outerIters), file=fp)
+        if verbose:
+            with open(logFile, 'a', encoding='utf-8') as fp:
+                fp.write('\n')
+            jsonWrite.array(logFile, retmat[i, :])
     return retmat
