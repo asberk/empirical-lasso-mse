@@ -15,11 +15,60 @@ except ImportError as ie:
     from spgl1 import spgl1
 
 
+# # # # #
+# Helper methods
+
+def softThresh(y, lam=None):
+    if lam is None or lam == 0:
+        return y
+    elif lam < 0:
+        raise ValueError('lam must be greater than zero')
+    return np.sign(y) * np.maximum(0, np.abs(y)-lam)
+
+
 def unsort(increasingVector, sortOrder):
     unsortedVector = np.zeros(increasingVector.size)
     for idx, orderedIdx in enumerate(sortOrder):
         unsortedVector[orderedIdx] = increasingVector[idx]
     return unsortedVector
+
+
+# # # # #
+# Methods to recover solutions to the proximal denoising problem
+
+def pd_golden_tau(y, tau, **kwargs):
+    """
+    pd_golden_tau returns the solution xstar to the proximal denoising problem
+    xstar = argmin( norm(x-y, 2) s.t. norm(x, 1) ≤ tau )
+    where y = x + eta*z, z ~ N(0, I) is a Gaussian random vector.
+    Input:
+    tau: threshold value for the one-norm of x.
+    y: assume y is already ravelled to an np vector (y = y.ravel())
+    returnLambda: whether to also return the threshold value.
+    """
+    optTol = kwargs.get('optTol', 1e-6)
+    maxIters = kwargs.get('maxIters', 500)
+    lam_max = np.max(np.abs(y))
+    lam_min = 0
+    lam_j = lam_max/2
+    iters = 0
+    while True:
+        y_lam_j = softThresh(y, lam_j)
+        y_ell1_j = np.linalg.norm(y_lam_j, 1)
+        iters += 1
+        if np.abs(y_ell1_j - tau) < optTol:
+            print('Convergence attained.')
+            break
+        elif iters > maxIters:
+            print('maxIters reached; convergence not attained.')
+            break
+        if y_ell1_j > tau:
+            lam_min = lam_j
+            lam_j = (lam_min + lam_max)/2
+        else:  # y_ell1_j < tau
+            lam_max = lam_j
+            lam_j = (lam_min + lam_max)/2
+    return y_lam_j
 
 
 def pd_homotopy(y, sigmaSquared=None, **kwargs):
@@ -30,6 +79,8 @@ def pd_homotopy(y, sigmaSquared=None, **kwargs):
     Input:
     sigmaSquared: threshold value; sigmaSquared = sigma**2 where
                   sigma is as above. If sigmaSquared is None
+                  try to find sigma in kwargs. If sigma is not a
+                  kwarg then set sigma = sqrt(n) where n = y.size.
     y: assume y is already ravelled to an np vector!
     returnLambda: whether to also return the threshold value
                   (default: False)
@@ -72,6 +123,9 @@ def pd_homotopy(y, sigmaSquared=None, **kwargs):
     raise Exception('Could not find interval in which sigmaSquared lies')
 
 
+# # # # #
+# Methods to compute MSE of proximal denoising solution
+
 def pdmse_spgl1(N, theta=None, **kwargs):
     """
     pdmse_spgl1 computes the proximal denoising mean-squared error for an x of
@@ -97,12 +151,27 @@ def pdmse_spgl1(N, theta=None, **kwargs):
         theta = np.sqrt(N)
     elif theta is 'sqNormZ':
         theta = np.linalg.norm(z)
-    elif isinstance(theta, 'str'):
+    elif isinstance(theta, str):
         raise ValueError('theta must be numeric or equal to \'sqNormZ\'.')
     y = x + eta*z
     xstar = spgl1(np.eye(N), y, sigma=theta, options=spgParms)[0]
     return np.linalg.norm(x - xstar)**2
 
+
+def pdmse_golden_tau(N, theta=None, **kwargs):
+    s = kwargs.get('s', 1)
+    eta = kwargs.get('eta', 1)
+    x = np.zeros(N)
+    x[-s:] = N
+    z = np.random.randn(N)
+    if theta is None:
+        tau = np.linalg.norm(x, 1)
+    else:
+        tau = theta
+    y = x + eta*z
+    xstar = pd_golden_tau(y, tau)
+    return np.linalg.norm(x - xstar)**2
+    
 
 def pdmse_homotopy(N, theta=None, **kwargs):
     """
@@ -137,6 +206,9 @@ def pdmse_homotopy(N, theta=None, **kwargs):
     return np.linalg.norm(x - xstar)**2
 
 
+# # # # #
+# Method to compute mse in batch and return mean
+
 def pdmse(N, theta=None, **kwargs):
     """
     pdmse uses func to compute several mean-squared errors for the same
@@ -157,6 +229,9 @@ def pdmse(N, theta=None, **kwargs):
     func = kwargs.pop('func', pdmse_homotopy)
     return np.mean([func(N, theta, **kwargs) for _ in range(iters)])
 
+
+# # # # #
+# computes a batch of mean-MSEs
 
 def pdmse_batch(logNmax=5, theta=None, **kwargs):
     """
