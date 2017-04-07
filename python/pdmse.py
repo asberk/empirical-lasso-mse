@@ -9,10 +9,15 @@ import jsonWrite
 try:
     from spgl1 import spgl1
 except ImportError as ie:
-    print('trying alternative import for spgl1')
+    print('trying alternative import for spgl1...', end='')
     import addToPath
     addToPath.spgl1()
-    from spgl1 import spgl1
+    try:
+        from spgl1 import spgl1
+        print('success!')
+    except Exception as e2:
+        print()
+        print(e2)
 
 
 # # # # #
@@ -48,6 +53,7 @@ def pd_golden_tau(y, tau, **kwargs):
     """
     optTol = kwargs.get('optTol', 1e-6)
     maxIters = kwargs.get('maxIters', 500)
+    verbose = kwargs.get('verbose', False)
     lam_max = np.max(np.abs(y))
     lam_min = 0
     lam_j = lam_max/2
@@ -57,10 +63,12 @@ def pd_golden_tau(y, tau, **kwargs):
         y_ell1_j = np.linalg.norm(y_lam_j, 1)
         iters += 1
         if np.abs(y_ell1_j - tau) < optTol:
-            print('Convergence attained.')
+            if verbose:
+                print('Convergence attained.')
             break
         elif iters > maxIters:
-            print('maxIters reached; convergence not attained.')
+            if verbose:
+                print('maxIters reached; convergence not attained.')
             break
         if y_ell1_j > tau:
             lam_min = lam_j
