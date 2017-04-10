@@ -54,6 +54,26 @@ def pd_golden_tau(y, tau, **kwargs):
     optTol = kwargs.get('optTol', 1e-6)
     maxIters = kwargs.get('maxIters', 500)
     verbose = kwargs.get('verbose', False)
+
+    y_ell1 = np.linalg.norm(y, 1)
+
+    if tau is None:
+        # Try filthy heuristic
+        sortOrder = np.argsort(np.abs(y))
+        ySorted = y[sortOrder]
+        biggestDiff = np.argmax(np.diff(np.abs(ySorted)))
+        # eta_estimate = ySorted[:biggestDiff].std()
+        # tau_estimate = np.linalg.norm(ySorted[biggestDiff:], 1)
+        tau = tau_estimate
+    elif tau <= 0:
+        return np.zeros(y.shape)
+    elif tau >= y_ell1:
+        return y
+    else:
+        if not (tau > 0 and tau < y_ell1):
+            raise ValueError('tau must be a number' +
+                             ' in the range (0, norm(y,1))')
+
     lam_max = np.max(np.abs(y))
     lam_min = 0
     lam_j = lam_max/2
@@ -77,6 +97,40 @@ def pd_golden_tau(y, tau, **kwargs):
             lam_max = lam_j
             lam_j = (lam_min + lam_max)/2
     return y_lam_j
+
+
+def pd_ls_homotopy(y, tau, **kwargs):
+    returnLambda = kwargs.get('returnLambda', False)
+
+    y_ell1 = np.linalg.norm(y, 1)
+    if tau is None:
+        raise ValueError('Enter a value for tau in the range [0, norm(y, 1)]')
+    elif tau <= 0:
+        return np.zeros(y.shape)
+    elif tau >= y_ell1:
+        return y
+    else:
+        if not (tau > 0 and tau < y_ell1):
+            raise ValueError('tau must be a number' +
+                             ' in the range (0, norm(y, 1))')
+    n = y.size
+    lam = np.insert(np.sort(np.abs(y)), 0, 0)
+
+    S = np.zeros(lam.size)
+    S[0] = y_ell1
+
+    for j in range(1, n+1):
+        S[j] = S[j-1] - (n-(j-1))*(lam[j]-lam[j-1])
+        if S[j] <= tau:
+            lam_star = (S[j-1] - tau)/(n-(j-1)) + lam[j-1]
+            if returnLambda:
+                return (softThresh(y, lam_star), lam_star)
+            else:
+                return softThresh(y, lam_star)
+    if returnLambda:
+        return (np.zeros(n), ySorted[-1])
+    else:
+        return np.zeros(n)
 
 
 def pd_homotopy(y, sigmaSquared=None, **kwargs):
