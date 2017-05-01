@@ -151,6 +151,8 @@ def pd_homotopy(y, sigmaSquared=None, **kwargs):
 
     if sigmaSquared is None:
         sigma = kwargs.get('sigma', np.sqrt(y.size))
+        if sigma is None:
+            sigma = np.sqrt(y.size)
         sigmaSquared = y.size
     else:
         sigma = np.sqrt(sigmaSquared)
