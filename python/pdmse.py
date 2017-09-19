@@ -45,7 +45,9 @@ def pd_golden_tau(y, tau, **kwargs):
     """
     pd_golden_tau returns the solution xstar to the proximal denoising problem
     xstar = argmin( norm(x-y, 2) s.t. norm(x, 1) ≤ tau )
-    where y = x + eta*z, z ~ N(0, I) is a Gaussian random vector.
+    where y = x + eta*z, z ~ N(0, I) is a Gaussian random vector. This
+    function uses the interval shortening method that converges with
+    rate equal to the golden ratio.
     Input:
     tau: threshold value for the one-norm of x.
     y: assume y is already ravelled to an np vector (y = y.ravel())
@@ -100,6 +102,16 @@ def pd_golden_tau(y, tau, **kwargs):
 
 
 def pd_ls_homotopy(y, tau, **kwargs):
+    """
+    pd_ls_homotopy(y, tau, **kwargs) is a proximal denoising solver
+    for the LS-tau problem using the homotopy method.
+    
+    Input:
+    y : the input signal x + noise
+    tau : the thresholding parameter in the minimization problem 
+          x_hat := argmin_w { norm(y-w, 2) : norm(w, 1) <= tau }
+    returnLambda : default: false
+    """
     returnLambda = kwargs.get('returnLambda', False)
 
     y_ell1 = np.linalg.norm(y, 1)
